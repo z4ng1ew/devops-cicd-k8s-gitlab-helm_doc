@@ -21,3 +21,23 @@ git push origin develop
 # После этого проверь:
 
 git log --oneline -5
+
+
+
+
+
+
+
+
+
+
+
+
+# Перенеси те же изменения в feature-ветку, чтобы прогнать пайплайн
+
+
+git checkout feature_initial_build
+
+git merge develop
+
+git push origin feature_initial_build
