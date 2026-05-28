@@ -1,4 +1,4 @@
-тобы перенести изменения из feature_initial_build в develop, выполни:
+чтобы перенести изменения из feature_initial_build в develop, выполни:
 
 
 # Переключаемся на develop
@@ -40,6 +40,7 @@ git checkout feature_initial_build
 
 git merge develop
 
+git push feature_initial_build
 
 
 
@@ -51,15 +52,33 @@ git merge develop
 
 
 
+Шаг 0. Резервная копия
+
+
+
+
+
+cd ~/DO13_CICD_Pipeline.ID_1294127-1
+
+# 1) архив всего проекта (самый надёжный откат)
+tar czf ~/DO13_backup_$(date +%F_%H%M).tar.gz .
+
+# 2) и зафиксировать текущее состояние в git как точку возврата
+git add -A
+git commit -m "snapshot before unit tests" || echo "нечего коммитить"
+git tag before-unit-tests
 
 
 
 
 
 
+Откат, если что-то пойдёт не так:
 
 
-
+git reset --hard before-unit-tests        # вернуть код
+# или из архива:
+tar xzf ~/DO13_backup_ДАТА_ВРЕМЯ.tar.gz -C ~/DO13_CICD_Pipeline.ID_1294127-1
 
 
 
@@ -264,3 +283,67 @@ newman run src/application_tests.postman_collection.json --insecure
 3. newman — всё ещё 5/5?
 
 Если всё зелёное — пункт 8 закрыт полноценно (и пароли, и приватные ключи через Secret), и можно описывать в отчёте. Если что-то сломается на шаге 6 — сразу пиши, откатим безопасно.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Правильный порядок
+
+Ты уже на `feature_initial_build` (и правки тут же, в рабочей папке). Коммитим их сюда:
+
+
+cd ~/DO13_CICD_Pipeline.ID_1294127-1
+git add -A
+git commit -m "test: H2 test configs, unit tests pass; remove pipeline workaround"
+
+
+Пушим feature-ветку — это запустит пайплайн (build + test, по правилу `feature_`):
+
+
+git push origin feature_initial_build
+
+
+Иди в GitLab → Build → Pipelines, дождись зелёного. **Не двигайся дальше, пока пайплайн на feature не позеленел** — это и есть проверка, что тесты честно проходят в раннере, а не только у тебя.
+
+Когда feature зелёный — переносим тот же код в `develop`:
+
+git checkout develop
+git merge feature_initial_build
+git push origin develop
+
+
+`git merge feature_initial_build` (находясь на develop) вливает коммит из feature в develop. Поскольку develop, скорее всего, не уходил вперёд, это будет «перемотка» (fast-forward — просто сдвиг указателя, без конфликтов).
+
+## Важный нюанс про develop и пайплайн
+
+Ты пишешь «на develop должен быть весь проект целиком — проверяющий смотрит именно его». После merge на develop ляжет тот же рабочий код — это правильно. Но обрати внимание: твои правила в `.gitlab-ci.yml` запускают `build`/`test` **только для веток `feature_`**:
+
+```yaml
+rules:
+  - if: '$CI_COMMIT_BRANCH =~ /^feature_/'
+```
+
+Значит, при пуше в `develop` пайплайн `build`/`test` **не запустится** — это нормально и соответствует заданию (там сказано «запускать автоматически для веток с префиксом `feature_`»). На develop лежит код и REPORT.MD, проверяющий смотрит содержимое и historyпайплайнов на feature. Так что не пугайся, что push в develop не даст пайплайн — так задумано.
+
+## Короткая шпаргалка по шагам
+
+1. `git add -A && git commit -m "..."` (на feature_initial_build)
+2. `git push origin feature_initial_build` → ждём зелёный пайплайн в GitLab
+3. `git checkout develop`
+4. `git merge feature_initial_build`
+5. `git push origin develop`
+
+Один совет: после шага 2, прежде чем мержить в develop, реально глянь логи задания `unit-test-job` в GitLab — раннер использует `mvn` (не `./mvnw`) и образ `maven:3.9-eclipse-temurin-17`. У тебя локально Java 8 в pom (`<java.version>8</java.version>`), а образ с Java 17 — сборка обычно проходит, но если вдруг `unit-test-job` покраснеет на чём-то, чего не было локально, кидай его лог, гляну. Newman-задание тоже может повести себя иначе (оно гоняет HTTP-запросы к поднятому приложению) — если упадёт, это отдельная история, к юнит-тестам отношения не имеет.
