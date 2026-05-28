@@ -18,6 +18,6 @@ git push origin develop
 
 
 
-
+# После этого проверь:
 
 git log --oneline -5
