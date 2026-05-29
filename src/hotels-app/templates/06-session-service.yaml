@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: session-service
+  labels: { app: session-service }
+spec:
+  replicas: {{ .Values.replicaCount.session }}
+  selector:
+    matchLabels: { app: session-service }
+  template:
+    metadata:
+      labels: { app: session-service }
+    spec:
+      containers:
+        - name: session-service
+          image: {{ .Values.image.session }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8081
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          env:
+            - name: POSTGRES_DB
+              value: users_db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: session-service
+  labels: { app: session-service }
+spec:
+  selector: { app: session-service }
+  ports:
+    - port: 8081
+      targetPort: 8081
+  type: ClusterIP

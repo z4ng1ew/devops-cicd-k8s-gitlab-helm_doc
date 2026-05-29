@@ -1,0 +1,46 @@
+replicaCount:
+  postgres: 1
+  rabbitmq: 1
+  session: 1
+  hotel: 1
+  booking: 1
+  payment: 1
+  loyalty: 1
+  report: 1
+  gateway: 2
+
+image:
+  pullPolicy: IfNotPresent
+  postgres: postgres:16.4-alpine@sha256:5660c2cbfea50c7a9127d17dc4e48543eedd3d7a41a595a2dfa572471e37e64c
+  rabbitmq: rabbitmq:3.12-management-alpine@sha256:0b44fbcc3a4bf22d00090f1353127577dbe1fcb109c41669733a9d7ecf6c3a78
+  session: src-session-service:0.3.0
+  hotel: src-hotel-service:0.3.0
+  booking: src-booking-service:0.3.0
+  payment: src-payment-service:0.3.0
+  loyalty: src-loyalty-service:0.3.0
+  report: src-report-service:0.3.0
+  gateway: src-gateway-service:0.2.0
+
+postgres:
+  storage:
+    size: 5Gi
+    storageClassName: manual
+    hostPath: /var/lib/postgres-pv
+
+ingress:
+  enabled: true
+  sessionHost: session.10.174.8.95.nip.io
+  gatewayHost: gateway.10.174.8.95.nip.io
+  tlsSecret: wildcard-nipio-tls
+  clusterIssuer: my-ca-issuer
+
+secrets:
+  postgresUser: "postgres"
+  postgresPassword: "postgres"
+  rabbitmqUser: "guest"
+  rabbitmqPassword: "guest"
+  gatewayUuid: "b51ceda2-bfa5-11eb-8529-0242ac130003"
+  bookingUuid: "911ccb4c-c055-11eb-8529-0242ac130003"
+  jwtPrivateKey: "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC9Q1hl6ossCg5Tr43IW0px2Wz0tDOKRHncreZcew3G+63QuXrLSb5BRh24q0ej4W+Wj8/6RR6vwG1hFtPIBqy6OYUvEdBmOay9eEpzQc2Xy253qSQyxco4FmyNLAwfyk0JS5DKdagT6ct3AqQe9+oGsEHf18CWD/dnYrfKI644uqniI3Lzrk+YnIwZ8BChKMN40qd7XkRuWsJBGEJr+hp1F1KvaYbPz/gqvBJS+IlG37/6mO1xoMaDfPxEUCJbHiWS8PcSeC9TllVVtC+oyPnQzYEbBh7ZfxbwAD3y5FW3qxWN33sQ53XaH7zHondMAQJ6hQROCb6Ml/0bBKfU0hz9AgMBAAECggEANI56Arsx8IXOWrDaZ3PqZVkiZ4WO9mtzh7OGz9GgDsyfBOIs1jzhJ1EoObrehwS4LxA6id4d2mJOPXLQVrB70K7ebCa/P1PuwyKfUghI5kkooPQISE0ijZa0iDNeHonYAKfKSl6H0RfQV3kVSEBB7Z+Oe3F3WnSOmFgSf4CPBdNc240kanQlxsmKjsDmsxLePiYNxU6vDoZt/JKQmSwQUIgznMm7upEmh3UR8q7N757I+dTEhGxs8LLGyvJ2nGnolH9fpkXJlAKHAUvnX1NfUkCgIGiVqpsxwHb5jTmjqpH1U8usaSPZDD0uLf4DLUjIgddpSGcUIjKlaNO9sQXsBQKBgQD5XpNMqgIZgtfEOVJ44auMZqCsIuKXwsICNZmeqSkv5J29ov3V/fkBjDpwiyEXO/9HeFOUEGSNGeFPF4ha0KnNFmeTwDCIPA2vyF3Z049GfRytc4qDqwdplVjgPBPKfrGNmGdHlKKoEHGjpWnuJgOkNhenPKG7zbevpty7TqgluwKBgQDCS6JEl9j34gp5+MoxIbkXt1WOwngnFwRscklTEGJ4wZ3i6GtKIOVzYd7VDqgomB/jnkDQlBK47OzAA54bJBkJ6w83cDGR8D51axYKgKG+Kd8EOeEN4PY+jjKyUpKU3o8o++JKEKs8J2raemb+5YlgiY1ZeDNhL4LrUVa3cIyApwKBgGXo56u6AreoSENx5alvGGt9eYY/j3jT5/N9MjWsDh/7fxeD59avPzcJtsxNn41eQJpVq1pkRKOBgxmOlXP/uJUO5e906KCUYkeHTAt8MR5ufOzJvj7HA3V7ymGBS9lCY49pTDPto3epmLd3H05rDKvsS0hWOAaHMN1BBQ4rO/6HAoGAMQJI/QpcZTJ0OA4EWl5KROwuvaLaEeohaIVvb29bl2AnRjwgDAO+PNt8DLv0uMCekpixeqtPCaxhj5GaCPiTBEhxfydiqZAzAQUw+xc1NTV0lqlO1mRfWKofqZFgfgKhk9HtY4dO2g6LSm7DmhomC97Gc8H5G9OTL25F9GGEX1MCgYEA5CkqAvlJfyCm5lGp2gLMfwElF1oYtgC5xRDpzI6DnMjKhUxeJaMgRkam3mvMA0zg58ZTY9q+CeSSyDohNZpLDZomG7mEuNDWAPbpafo9g8q1g7ucWGeFRgVAmf0xmnJHHmAqODdT9X02abJZMumawCRDtRpPKvNtamO9jex9YgM="
+  jwtPublicKey: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvUNYZeqLLAoOU6+NyFtKcdls9LQzikR53K3mXHsNxvut0Ll6y0m+QUYduKtHo+Fvlo/P+kUer8BtYRbTyAasujmFLxHQZjmsvXhKc0HNl8tud6kkMsXKOBZsjSwMH8pNCUuQynWoE+nLdwKkHvfqBrBB39fAlg/3Z2K3yiOuOLqp4iNy865PmJyMGfAQoSjDeNKne15EblrCQRhCa/oadRdSr2mGz8/4KrwSUviJRt+/+pjtcaDGg3z8RFAiWx4lkvD3EngvU5ZVVbQvqMj50M2BGwYe2X8W8AA98uRVt6sVjd97EOd12h+8x6J3TAECeoUETgm+jJf9GwSn1NIc/QIDAQAB"
+

@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: loyalty-service
+  labels: { app: loyalty-service }
+spec:
+  replicas: {{ .Values.replicaCount.loyalty }}
+  selector:
+    matchLabels: { app: loyalty-service }
+  template:
+    metadata:
+      labels: { app: loyalty-service }
+    spec:
+      containers:
+        - name: loyalty-service
+          image: {{ .Values.image.loyalty }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8085
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          env:
+            - name: POSTGRES_DB
+              value: balances_db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loyalty-service
+  labels: { app: loyalty-service }
+spec:
+  selector: { app: loyalty-service }
+  ports:
+    - port: 8085
+      targetPort: 8085
+  type: ClusterIP

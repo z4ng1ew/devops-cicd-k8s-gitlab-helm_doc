@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  labels: { app: payment-service }
+spec:
+  replicas: {{ .Values.replicaCount.payment }}
+  selector:
+    matchLabels: { app: payment-service }
+  template:
+    metadata:
+      labels: { app: payment-service }
+    spec:
+      containers:
+        - name: payment-service
+          image: {{ .Values.image.payment }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 8084
+          envFrom:
+            - configMapRef:
+                name: app-config
+            - secretRef:
+                name: app-secrets
+          env:
+            - name: POSTGRES_DB
+              value: payments_db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+  labels: { app: payment-service }
+spec:
+  selector: { app: payment-service }
+  ports:
+    - port: 8084
+      targetPort: 8084
+  type: ClusterIP
