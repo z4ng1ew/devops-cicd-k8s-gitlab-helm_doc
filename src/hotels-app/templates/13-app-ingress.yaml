@@ -36,3 +36,69 @@ spec:
 {{- end }}
 
 
+# Построчный комментарий к `ingress.yaml`
+
+```yaml
+{{- if .Values.ingress.enabled }}           # Helm-условие: создавать ресурс только если
+                                            # в values.yaml ingress.enabled = true
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress                               # Ingress — управляет внешним HTTP/HTTPS-доступом
+metadata:
+  name: app-ingress                         # Имя Ingress
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.ingress.clusterIssuer }}
+                                            # Аннотация для cert-manager:
+                                            # автоматически выпустит TLS-сертификат
+                                            # через указанный ClusterIssuer (my-ca-issuer)
+
+spec:
+  ingressClassName: nginx                   # Использовать nginx-ingress-controller
+                                            # (должен быть установлен в кластере)
+
+  tls:                                      # Настройка HTTPS
+    - hosts:
+        - {{ .Values.ingress.sessionHost }}     # session.10.174.8.95.nip.io
+        - {{ .Values.ingress.gatewayHost }}     # gateway.10.174.8.95.nip.io
+      secretName: {{ .Values.ingress.tlsSecret }}
+                                            # Имя Secret'а с TLS-сертификатом
+                                            # (wildcard-nipio-tls — создаст cert-manager)
+
+  rules:                                    # Правила маршрутизации
+    - host: {{ .Values.ingress.sessionHost }}   # Если запрос на session.10.174.8.95.nip.io
+      http:
+        paths:
+          - path: /                         # Любой путь
+            pathType: Prefix                # Префиксное совпадение
+            backend:
+              service:
+                name: session-service       # → перенаправить на session-service
+                port:
+                  number: 8081              # на порт 8081
+
+    - host: {{ .Values.ingress.gatewayHost }}   # Если запрос на gateway.10.174.8.95.nip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway-service       # → перенаправить на gateway-service
+                port:
+                  number: 8087              # на порт 8087
+{{- end }}                                  # Конец условия Helm if
+```
+
+> **Как работает цепочка:** клиент → `gateway.10.174.8.95.nip.io` → DNS (nip.io резолвит в IP 10.174.8.95) → nginx-ingress → Ingress по хосту определяет правило → ClusterIP-сервис gateway-service → один из 2 подов gateway.
+
+> **nip.io:** wildcard DNS-сервис: `что-угодно.10.174.8.95.nip.io` всегда резолвится в IP `10.174.8.95`. Удобно для разработки без настройки реального DNS.
+
+> **cert-manager + ClusterIssuer:** автоматически выпускает и продлевает TLS-сертификаты. Аннотация инструктирует cert-manager создать Secret `wildcard-nipio-tls` с актуальным сертификатом.
+
+> **Два хоста:** session отдельным хостом — для прямого доступа к авторизации (логин/регистрация), gateway — для всех остальных API-вызовов.
+
+---
+
+# Монолог для защиты (~300 символов)
+
+> Ingress — точка входа в кластер для внешнего трафика. Через ingressClassName nginx и nip.io DNS я открываю два хоста: session для авторизации и gateway для всех бизнес-запросов. TLS-сертификаты автоматически выпускает cert-manager через ClusterIssuer. Шаблон активируется флагом из values.yaml.

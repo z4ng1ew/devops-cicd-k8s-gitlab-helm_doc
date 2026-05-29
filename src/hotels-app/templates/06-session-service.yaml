@@ -37,3 +37,74 @@ spec:
     - port: 8081
       targetPort: 8081
   type: ClusterIP
+
+
+
+
+
+# Построчный комментарий к `session-service.yaml`
+
+```yaml
+# ============ DEPLOYMENT ============
+apiVersion: apps/v1
+kind: Deployment                            # Deployment — для stateless микросервисов
+                                            # (поддерживает rolling update, масштабирование)
+metadata:
+  name: session-service                     # Имя Deployment
+  labels: { app: session-service }          # Метка приложения
+
+spec:
+  replicas: {{ .Values.replicaCount.session }}    # Кол-во реплик из values.yaml (1)
+  selector:
+    matchLabels: { app: session-service }   # Селектор управляемых подов
+
+  template:                                 # Шаблон пода
+    metadata:
+      labels: { app: session-service }      # Метка для связи с Service
+    spec:
+      containers:
+        - name: session-service
+          image: {{ .Values.image.session }}        # Образ src-session-service:0.3.0
+          imagePullPolicy: {{ .Values.image.pullPolicy }}    # IfNotPresent
+
+          ports:
+            - containerPort: 8081           # Порт, на котором слушает Spring Boot приложение
+
+          envFrom:                          # Массовая загрузка переменных окружения
+            - configMapRef:
+                name: app-config            # Все ключи из ConfigMap → env (хосты, порты сервисов)
+            - secretRef:
+                name: app-secrets           # Все ключи из Secret → env (логины, пароли, JWT-ключи)
+
+          env:                              # Точечные переменные, переопределяют envFrom
+            - name: POSTGRES_DB
+              value: users_db               # Эта конкретная БД для session-service
+                                            # (других микросервисов будет своя БД)
+
+---
+# ============ SERVICE ============
+apiVersion: v1
+kind: Service
+metadata:
+  name: session-service                     # DNS-имя для обращения изнутри кластера:
+                                            # http://session-service:8081
+  labels: { app: session-service }
+
+spec:
+  selector: { app: session-service }        # Какие поды обслуживает (по метке)
+  ports:
+    - port: 8081                            # Порт сервиса
+      targetPort: 8081                      # Порт контейнера
+  type: ClusterIP                           # Только внутренний доступ внутри кластера
+                                            # (наружу — через Ingress на gateway)
+```
+
+> **Шаблон для всех микросервисов:** session, hotel, booking, payment, loyalty, report устроены одинаково. Отличаются только образ, порт, имя и значение `POSTGRES_DB`. Конфигурация и секреты универсальны и подключаются через `envFrom`.
+
+> **Почему ClusterIP:** session-service не должен быть доступен напрямую снаружи. Все внешние запросы идут через gateway-service, у которого есть Ingress.
+
+---
+
+# Монолог для защиты (~300 символов)
+
+> Session-service — stateless микросервис, поэтому Deployment, а не StatefulSet. Через `envFrom` поднимаются все переменные из ConfigMap и Secret сразу, а через `env` точечно задаётся имя БД `users_db`. Service типа ClusterIP делает сервис доступным только внутри кластера — наружу идёт только через gateway.

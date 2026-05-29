@@ -21,3 +21,48 @@
 .idea/
 *.tmproj
 .vscode/
+
+
+
+
+
+
+
+
+# Построчный комментарий к `.helmignore`
+
+```bash
+# Patterns to ignore when building packages.
+# This supports shell glob matching, relative path matching, and
+# negation (prefixed with !). Only one pattern per line.
+                            # Шапка-комментарий: какие шаблоны можно использовать (glob, !отрицание)
+.DS_Store                   # Служебный файл macOS (метаданные папок) — не нужен в чарте
+
+# Common VCS dirs           # Каталоги систем контроля версий
+.git/                       # Репозиторий Git
+.gitignore                  # Файл правил игнора Git
+.bzr/                       # Bazaar VCS
+.bzrignore                  # Игнор Bazaar
+.hg/                        # Mercurial VCS
+.hgignore                   # Игнор Mercurial
+.svn/                       # Subversion VCS
+
+# Common backup files       # Временные и резервные файлы редакторов
+*.swp                       # Swap-файлы Vim
+*.bak                       # Бэкапы
+*.tmp                       # Временные файлы
+*.orig                      # Оригиналы после merge-конфликтов
+*~                          # Бэкапы Emacs и других редакторов
+
+# Various IDEs              # Файлы и каталоги IDE
+.project                    # Конфиг Eclipse
+.idea/                      # Каталог настроек JetBrains (IntelliJ IDEA и др.)
+*.tmproj                    # Проект TextMate
+.vscode/                    # Каталог настроек Visual Studio Code
+```
+
+---
+
+# Монолог для защиты (~300 символов)
+
+> Файл `.helmignore` работает по аналогии с `.gitignore`: он указывает Helm, какие файлы и каталоги не включать в пакет чарта при сборке командой `helm package`. Я исключаю мусор IDE, служебные файлы macOS, каталоги систем контроля версий и резервные копии редакторов, чтобы итоговый архив был чистым и компактным.

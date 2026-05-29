@@ -37,3 +37,71 @@ spec:
     - port: 8085
       targetPort: 8085
   type: ClusterIP
+
+
+
+
+
+
+  # Построчный комментарий к `loyalty-service.yaml`
+
+```yaml
+# ============ DEPLOYMENT ============
+apiVersion: apps/v1
+kind: Deployment                            # Deployment — stateless микросервис
+metadata:
+  name: loyalty-service                     # Имя Deployment
+  labels: { app: loyalty-service }          # Метка приложения
+
+spec:
+  replicas: {{ .Values.replicaCount.loyalty }}    # Кол-во реплик из values.yaml (1)
+  selector:
+    matchLabels: { app: loyalty-service }   # Селектор управляемых подов
+
+  template:                                 # Шаблон пода
+    metadata:
+      labels: { app: loyalty-service }      # Метка для связи с Service
+    spec:
+      containers:
+        - name: loyalty-service
+          image: {{ .Values.image.loyalty }}        # Образ src-loyalty-service:0.3.0
+          imagePullPolicy: {{ .Values.image.pullPolicy }}    # IfNotPresent
+
+          ports:
+            - containerPort: 8085           # Порт Spring Boot приложения
+
+          envFrom:                          # Общие env-переменные
+            - configMapRef:
+                name: app-config            # Адреса других сервисов
+            - secretRef:
+                name: app-secrets           # Учётки, JWT-ключи
+
+          env:
+            - name: POSTGRES_DB
+              value: balances_db            # Своя БД — balances_db (баланс баллов лояльности)
+
+---
+# ============ SERVICE ============
+apiVersion: v1
+kind: Service
+metadata:
+  name: loyalty-service                     # DNS-имя: http://loyalty-service:8085
+  labels: { app: loyalty-service }
+
+spec:
+  selector: { app: loyalty-service }        # Какие поды обслуживает
+  ports:
+    - port: 8085                            # Порт сервиса
+      targetPort: 8085                      # Порт контейнера
+  type: ClusterIP                           # Только внутренний доступ
+```
+
+> **Роль loyalty-service:** управляет программой лояльности — статусы пользователей (BRONZE/SILVER/GOLD), бонусные баллы за брони, скидки. Вызывается из booking-service при создании и отмене брони для начисления/списания баллов.
+
+> **БД `balances_db`:** хранит баланс баллов и историю изменения статуса для каждого пользователя.
+
+---
+
+# Монолог для защиты (~300 символов)
+
+> Loyalty-service отвечает за программу лояльности — баллы, статусы пользователей и скидки. Развёрнут как stateless Deployment с БД `balances_db`. Вызывается booking-сервисом при бронировании и отмене для начисления и списания баллов. Service типа ClusterIP — внутренний доступ через gateway.

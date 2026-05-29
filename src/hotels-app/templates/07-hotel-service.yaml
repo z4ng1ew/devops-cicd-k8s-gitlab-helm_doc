@@ -37,3 +37,71 @@ spec:
     - port: 8082
       targetPort: 8082
   type: ClusterIP
+
+
+
+
+
+# Построчный комментарий к `hotel-service.yaml`
+
+```yaml
+# ============ DEPLOYMENT ============
+apiVersion: apps/v1
+kind: Deployment                            # Deployment — stateless микросервис
+metadata:
+  name: hotel-service                       # Имя Deployment
+  labels: { app: hotel-service }            # Метка приложения
+
+spec:
+  replicas: {{ .Values.replicaCount.hotel }}    # Кол-во реплик из values.yaml (1)
+  selector:
+    matchLabels: { app: hotel-service }     # Селектор управляемых подов
+
+  template:                                 # Шаблон пода
+    metadata:
+      labels: { app: hotel-service }        # Метка для связи с Service
+    spec:
+      containers:
+        - name: hotel-service
+          image: {{ .Values.image.hotel }}          # Образ src-hotel-service:0.3.0
+          imagePullPolicy: {{ .Values.image.pullPolicy }}    # IfNotPresent
+
+          ports:
+            - containerPort: 8082           # Порт Spring Boot приложения
+
+          envFrom:                          # Подключаем общие env-переменные
+            - configMapRef:
+                name: app-config            # Хосты, порты сервисов, RabbitMQ-настройки
+            - secretRef:
+                name: app-secrets           # Учётки, UUID, JWT-ключи
+
+          env:
+            - name: POSTGRES_DB
+              value: hotels_db              # Своя БД для hotel-service
+
+---
+# ============ SERVICE ============
+apiVersion: v1
+kind: Service
+metadata:
+  name: hotel-service                       # DNS-имя: http://hotel-service:8082
+  labels: { app: hotel-service }
+
+spec:
+  selector: { app: hotel-service }          # Какие поды обслуживает
+  ports:
+    - port: 8082                            # Порт сервиса
+      targetPort: 8082                      # Порт контейнера
+  type: ClusterIP                           # Только внутренний доступ
+                                            # (gateway обращается через DNS-имя hotel-service)
+```
+
+> **Связь с другими сервисами:** gateway-service вызывает hotel-service через DNS `hotel-service:8082`. Эти координаты приходят к gateway из ConfigMap `app-config` (переменные `HOTEL_SERVICE_HOST` и `HOTEL_SERVICE_PORT`).
+
+> **Изоляция БД:** каждый микросервис работает только со своей базой (`hotels_db`), что соответствует принципу Database per Service в микросервисной архитектуре.
+
+---
+
+# Монолог для защиты (~300 символов)
+
+> Hotel-service — stateless микросервис, развёрнут как Deployment с собственной БД `hotels_db`. Конфигурация и секреты подключаются через `envFrom` из общих ConfigMap и Secret. Service типа ClusterIP открывает порт 8082 только внутри кластера — обращения идут через gateway по DNS-имени.

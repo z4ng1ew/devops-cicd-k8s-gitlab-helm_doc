@@ -42,3 +42,69 @@ resources:
     cpu: 100m
     memory: 128Mi
     
+
+
+
+
+
+
+
+
+
+
+
+
+# Построчный комментарий к `values.yaml` GitLab Runner
+
+```yaml
+gitlabUrl: "https://git.21-school.ru"   # URL GitLab-инстанса, к которому подключается раннер
+
+image:
+  registry: registry.gitlab.com         # Registry, откуда тянем образ раннера
+  image: gitlab-org/gitlab-runner       # Официальный образ GitLab Runner
+  tag: alpine-v16.11.0                  # Версия — alpine 16.11.0 (легковесная)
+
+concurrent: 4                           # Сколько job'ов раннер может выполнять параллельно
+checkInterval: 10                       # Интервал (сек) опроса GitLab на новые job'ы
+logLevel: info                          # Уровень логирования (debug/info/warn/error)
+
+runners:
+  config: |                             # TOML-конфиг раннера, передаётся внутрь config.toml
+    [[runners]]
+      [runners.kubernetes]              # Executor типа kubernetes — каждый job в отдельном поде
+        namespace = "gitlab-runner"     # Namespace, где создаются job-поды
+        image = "ubuntu:22.04"          # Дефолтный образ для job'ов, если не указан в .gitlab-ci.yml
+        cpu_request = "100m"            # Запрос CPU для job-пода (0.1 ядра)
+        cpu_limit = "1"                 # Лимит CPU (1 ядро)
+        memory_request = "256Mi"        # Запрос памяти
+        memory_limit = "2Gi"            # Лимит памяти
+        privileged = true               # Привилегированный режим (нужен для DinD, сборки образов)
+
+rbac:
+  create: true                          # Создавать ли Role/RoleBinding автоматически
+  rules:                                # Права раннера в namespace
+    - resources: ["pods", "pods/exec", "pods/attach", "secrets", "configmaps"]
+      verbs: ["get", "list", "watch", "create", "patch", "delete", "update"]
+                                        # Управление подами job'ов, доступ к секретам и configmap'ам
+    - resources: ["pods/log"]
+      verbs: ["get", "list"]            # Чтение логов job-подов
+    - resources: ["events"]
+      verbs: ["list", "watch"]          # Просмотр событий (для диагностики)
+
+serviceAccount:
+  create: true                          # Создать ServiceAccount для раннера автоматически
+
+resources:                              # Ресурсы самого пода раннера (не job'ов)
+  limits:
+    cpu: 500m                           # Лимит CPU — пол-ядра
+    memory: 512Mi                       # Лимит памяти
+  requests:
+    cpu: 100m                           # Гарантированный CPU
+    memory: 128Mi                       # Гарантированная память
+```
+
+---
+
+# Монолог для защиты (~300 символов)
+
+> Это `values.yaml` для Helm-чарта GitLab Runner. Раннер подключается к моему GitLab, использует Kubernetes-executor: для каждого job создаётся отдельный под в namespace `gitlab-runner`. Настроены RBAC-права, ServiceAccount, лимиты ресурсов и параллельность в 4 job'а. Привилегированный режим нужен для сборки Docker-образов.

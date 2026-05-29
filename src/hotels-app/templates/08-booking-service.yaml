@@ -37,3 +37,78 @@ spec:
     - port: 8083
       targetPort: 8083
   type: ClusterIP
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Построчный комментарий к `booking-service.yaml`
+
+```yaml
+# ============ DEPLOYMENT ============
+apiVersion: apps/v1
+kind: Deployment                            # Deployment — stateless микросервис
+metadata:
+  name: booking-service                     # Имя Deployment
+  labels: { app: booking-service }          # Метка приложения
+
+spec:
+  replicas: {{ .Values.replicaCount.booking }}    # Кол-во реплик из values.yaml (1)
+  selector:
+    matchLabels: { app: booking-service }   # Селектор управляемых подов
+
+  template:                                 # Шаблон пода
+    metadata:
+      labels: { app: booking-service }      # Метка для связи с Service
+    spec:
+      containers:
+        - name: booking-service
+          image: {{ .Values.image.booking }}        # Образ src-booking-service:0.3.0
+          imagePullPolicy: {{ .Values.image.pullPolicy }}    # IfNotPresent
+
+          ports:
+            - containerPort: 8083           # Порт Spring Boot приложения
+
+          envFrom:                          # Общие env-переменные
+            - configMapRef:
+                name: app-config            # В т.ч. RABBIT_MQ_* — booking шлёт события в RabbitMQ
+            - secretRef:
+                name: app-secrets           # В т.ч. BOOKING_SERVICE_UUID — служебная авторизация
+
+          env:
+            - name: POSTGRES_DB
+              value: reservations_db        # Своя БД для бронирований
+
+---
+# ============ SERVICE ============
+apiVersion: v1
+kind: Service
+metadata:
+  name: booking-service                     # DNS-имя: http://booking-service:8083
+  labels: { app: booking-service }
+
+spec:
+  selector: { app: booking-service }        # Какие поды обслуживает
+  ports:
+    - port: 8083                            # Порт сервиса
+      targetPort: 8083                      # Порт контейнера
+  type: ClusterIP                           # Только внутренний доступ
+```
+
+> **Особенность booking-service:** это центральный сервис оркестрации — он вызывает hotel-service (проверка номеров), payment-service (оплата), loyalty-service (начисление баллов) и публикует события в RabbitMQ (`booking_statistics_exchange`), которые потом читает report-service для статистики.
+
+> **BOOKING_SERVICE_UUID** из Secret используется как служебный токен для межсервисных запросов — gateway проверяет UUID для подтверждения, что запрос пришёл от доверенного сервиса.
+
+---
+
+# Монолог для защиты (~300 символов)
+
+> Booking-service — центральный микросервис оркестрации бронирований. Подключается к БД `reservations_db`, общается с hotel, payment и loyalty сервисами, публикует события в RabbitMQ для report-service. Развёрнут как Deployment, ClusterIP-сервис открывает порт 8083 только внутри кластера.

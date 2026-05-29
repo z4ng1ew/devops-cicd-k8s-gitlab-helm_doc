@@ -34,3 +34,76 @@ spec:
     - port: 8087
       targetPort: 8087
   type: ClusterIP
+
+
+
+
+
+# Построчный комментарий к `gateway-service.yaml`
+
+```yaml
+# ============ DEPLOYMENT ============
+apiVersion: apps/v1
+kind: Deployment                            # Deployment — stateless микросервис
+metadata:
+  name: gateway-service                     # Имя Deployment
+  labels: { app: gateway-service }          # Метка приложения
+
+spec:
+  replicas: {{ .Values.replicaCount.gateway }}    # Кол-во реплик из values.yaml (2!)
+                                            # Gateway масштабируется для отказоустойчивости
+                                            # и распределения внешней нагрузки
+  selector:
+    matchLabels: { app: gateway-service }   # Селектор управляемых подов
+
+  template:                                 # Шаблон пода
+    metadata:
+      labels: { app: gateway-service }      # Метка для связи с Service
+    spec:
+      containers:
+        - name: gateway-service
+          image: {{ .Values.image.gateway }}        # Образ src-gateway-service:0.2.0
+          imagePullPolicy: {{ .Values.image.pullPolicy }}    # IfNotPresent
+
+          ports:
+            - containerPort: 8087           # Порт Spring Boot приложения
+
+          envFrom:                          # Общие env-переменные
+            - configMapRef:
+                name: app-config            # Адреса ВСЕХ микросервисов
+                                            # (gateway маршрутизирует запросы к ним)
+            - secretRef:
+                name: app-secrets           # JWT public key для верификации токенов,
+                                            # GATEWAY_SERVICE_UUID для межсервисной авторизации
+
+          # Нет env с POSTGRES_DB — gateway не имеет своей БД,
+          # это API-шлюз без хранилища состояния
+
+---
+# ============ SERVICE ============
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-service                     # DNS-имя: http://gateway-service:8087
+  labels: { app: gateway-service }
+
+spec:
+  selector: { app: gateway-service }        # Какие поды обслуживает (балансировка между 2 репликами)
+  ports:
+    - port: 8087                            # Порт сервиса
+      targetPort: 8087                      # Порт контейнера
+  type: ClusterIP                           # ClusterIP, но снаружи доступен через Ingress!
+                                            # Ingress направляет внешний трафик именно сюда
+```
+
+> **Роль gateway-service:** единая точка входа для внешних клиентов. Принимает HTTP-запросы через Ingress, проверяет JWT-токены (используя `JWT_PUBLIC_KEY`), маршрутизирует на hotel, booking, payment, loyalty, report. Реализует паттерн API Gateway.
+
+> **Почему 2 реплики:** в отличие от внутренних сервисов, gateway принимает весь внешний трафик. 2 пода обеспечивают HA — если один умирает, второй продолжает обслуживать. Service автоматически балансирует round-robin между ними.
+
+> **Нет своей БД:** gateway — stateless по определению, только маршрутизация и валидация токенов.
+
+---
+
+# Монолог для защиты (~300 символов)
+
+> Gateway-service — это API Gateway, единая точка входа. Реплицируется в 2 пода для отказоустойчивости и балансировки. Не имеет своей БД, валидирует JWT через публичный ключ из Secret и маршрутизирует запросы на внутренние микросервисы по их DNS-именам. Снаружи доступен только через Ingress.

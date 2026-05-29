@@ -37,3 +37,68 @@ spec:
     - port: 8084
       targetPort: 8084
   type: ClusterIP
+
+
+
+# Построчный комментарий к `payment-service.yaml`
+
+```yaml
+# ============ DEPLOYMENT ============
+apiVersion: apps/v1
+kind: Deployment                            # Deployment — stateless микросервис
+metadata:
+  name: payment-service                     # Имя Deployment
+  labels: { app: payment-service }          # Метка приложения
+
+spec:
+  replicas: {{ .Values.replicaCount.payment }}    # Кол-во реплик из values.yaml (1)
+  selector:
+    matchLabels: { app: payment-service }   # Селектор управляемых подов
+
+  template:                                 # Шаблон пода
+    metadata:
+      labels: { app: payment-service }      # Метка для связи с Service
+    spec:
+      containers:
+        - name: payment-service
+          image: {{ .Values.image.payment }}        # Образ src-payment-service:0.3.0
+          imagePullPolicy: {{ .Values.image.pullPolicy }}    # IfNotPresent
+
+          ports:
+            - containerPort: 8084           # Порт Spring Boot приложения
+
+          envFrom:                          # Общие env-переменные
+            - configMapRef:
+                name: app-config            # Адреса других сервисов
+            - secretRef:
+                name: app-secrets           # Учётки, JWT-ключи, UUID
+
+          env:
+            - name: POSTGRES_DB
+              value: payments_db            # Своя БД для платежей
+
+---
+# ============ SERVICE ============
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service                     # DNS-имя: http://payment-service:8084
+  labels: { app: payment-service }
+
+spec:
+  selector: { app: payment-service }        # Какие поды обслуживает
+  ports:
+    - port: 8084                            # Порт сервиса
+      targetPort: 8084                      # Порт контейнера
+  type: ClusterIP                           # Только внутренний доступ
+```
+
+> **Роль payment-service:** обрабатывает платежи за бронирования. Вызывается из booking-service при создании брони и при отмене (возврат средств). Хранит историю транзакций в `payments_db`.
+
+> **Изоляция:** ClusterIP-сервис означает, что напрямую с платёжным сервисом снаружи общаться нельзя — только через цепочку gateway → booking-service → payment-service. Это слой безопасности для критичных финансовых операций.
+
+---
+
+# Монолог для защиты (~300 символов)
+
+> Payment-service отвечает за платежи и возвраты. Развёрнут как stateless Deployment с собственной БД `payments_db`. Вызывается из booking-service при создании и отмене брони. Service типа ClusterIP — финансовый сервис изолирован от внешнего мира, доступ только через gateway и booking.

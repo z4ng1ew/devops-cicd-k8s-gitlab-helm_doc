@@ -21,3 +21,53 @@ data:
   LOYALTY_SERVICE_PORT: "8085"
   REPORT_SERVICE_HOST: report-service
   REPORT_SERVICE_PORT: "8086"
+
+
+
+
+
+
+# Построчный комментарий к `app-configmap.yaml`
+
+```yaml
+apiVersion: v1                              # Версия API Kubernetes для ConfigMap
+kind: ConfigMap                             # Тип ресурса — ConfigMap (несекретная конфигурация)
+metadata:
+  name: app-config                          # Имя ConfigMap; на него ссылаются Deployment'ы микросервисов через envFrom
+
+data:                                       # Пары ключ-значение, попадают в переменные окружения подов
+
+  # --- Подключение к PostgreSQL ---
+  POSTGRES_HOST: postgres                   # DNS-имя сервиса PostgreSQL внутри namespace
+  POSTGRES_PORT: "5432"                     # Стандартный порт PostgreSQL (строкой, как требует k8s)
+
+  # --- Подключение к RabbitMQ ---
+  RABBIT_MQ_HOST: rabbitmq                  # DNS-имя сервиса RabbitMQ
+  RABBIT_MQ_PORT: "5672"                    # AMQP-порт RabbitMQ
+  RABBIT_MQ_QUEUE_NAME: booking_statistics_queue
+                                            # Имя очереди для статистики бронирований
+  RABBIT_MQ_EXCHANGE: booking_statistics_exchange
+                                            # Имя exchange-а для публикации событий
+
+  # --- Адреса микросервисов (внутренний DNS Kubernetes) ---
+  SESSION_SERVICE_HOST: session-service     # Сервис авторизации/сессий
+  SESSION_SERVICE_PORT: "8081"
+  HOTEL_SERVICE_HOST: hotel-service         # Сервис отелей
+  HOTEL_SERVICE_PORT: "8082"
+  BOOKING_SERVICE_HOST: booking-service     # Сервис бронирований
+  BOOKING_SERVICE_PORT: "8083"
+  PAYMENT_SERVICE_HOST: payment-service     # Сервис платежей
+  PAYMENT_SERVICE_PORT: "8084"
+  LOYALTY_SERVICE_HOST: loyalty-service     # Сервис программы лояльности
+  LOYALTY_SERVICE_PORT: "8085"
+  REPORT_SERVICE_HOST: report-service       # Сервис отчётов/статистики
+  REPORT_SERVICE_PORT: "8086"
+```
+
+> **Принцип работы:** микросервисы получают эти значения как переменные окружения через `envFrom: configMapRef: name: app-config` в Deployment'ах. Так конфигурация отделена от кода, и при изменении хостов или портов не нужно пересобирать образы.
+
+---
+
+# Монолог для защиты (~300 символов)
+
+> Этот ConfigMap `app-config` хранит несекретную конфигурацию приложения: адреса и порты PostgreSQL, RabbitMQ и всех семи микросервисов. Значения подключаются к подам через `envFrom` и становятся переменными окружения. Такой подход отделяет конфигурацию от кода и упрощает поддержку.

@@ -42,3 +42,67 @@ data:
         fi
     done
     echo "[init-check] Все 6 баз данных созданы успешно."
+
+
+
+
+# Построчный комментарий к `postgres-init-configmap.yaml`
+
+```yaml
+apiVersion: v1                          # Версия API Kubernetes для ConfigMap
+kind: ConfigMap                         # Тип ресурса — ConfigMap (хранилище конфигов/скриптов)
+metadata:
+  name: postgres-init                   # Имя ConfigMap, на него ссылается под PostgreSQL
+data:                                   # Данные ConfigMap (ключ → содержимое файла)
+
+  01-init.sql: |                        # SQL-скрипт инициализации (запускается первым по алфавиту)
+    \c postgres;                        # Подключаемся к системной БД postgres
+    DROP DATABASE IF EXISTS users_db;   # Удаляем БД пользователей, если уже существует
+    CREATE DATABASE users_db OWNER postgres;       # Создаём БД заново с владельцем postgres
+    DROP DATABASE IF EXISTS hotels_db;             # Аналогично для отелей
+    CREATE DATABASE hotels_db OWNER postgres;
+    DROP DATABASE IF EXISTS reservations_db;       # Для бронирований
+    CREATE DATABASE reservations_db OWNER postgres;
+    DROP DATABASE IF EXISTS payments_db;           # Для платежей
+    CREATE DATABASE payments_db OWNER postgres;
+    DROP DATABASE IF EXISTS balances_db;           # Для балансов (лояльность)
+    CREATE DATABASE balances_db OWNER postgres;
+    DROP DATABASE IF EXISTS statistics_db;         # Для статистики/отчётов
+    CREATE DATABASE statistics_db OWNER postgres;
+
+  02-init-check.sh: |                   # Bash-скрипт проверки (запускается вторым)
+    #!/bin/bash
+    set -e                              # Прерывать выполнение при любой ошибке
+    EXPECTED_DBS=(                      # Массив ожидаемых БД
+        "users_db"
+        "hotels_db"
+        "reservations_db"
+        "payments_db"
+        "balances_db"
+        "statistics_db"
+    )
+    echo "[init-check] Проверка списка созданных баз данных..."
+    ACTUAL_DBS=$(psql -U "$POSTGRES_USER" -d postgres -tAc "SELECT datname FROM pg_database WHERE datistemplate = false;")
+                                        # Запрашиваем у PostgreSQL все непользовательские БД
+                                        # -tAc: tuples only, без выравнивания, выполнить команду
+    echo "[init-check] Найдены базы данных:"
+    echo "$ACTUAL_DBS" | sed 's/^/  - /'  # Выводим список с отступом для читаемости
+    echo "[init-check] Проверяем наличие требуемых БД..."
+    for db in "${EXPECTED_DBS[@]}"; do   # Перебираем ожидаемые БД
+        if echo "$ACTUAL_DBS" | grep -qx "$db"; then    # Точное совпадение строки
+            echo "  [OK]    $db"        # БД найдена
+        else
+            echo "  [FAIL]  $db — НЕ НАЙДЕНА!"
+            exit 1                      # Падаем с ошибкой, контейнер перезапустится
+        fi
+    done
+    echo "[init-check] Все 6 баз данных созданы успешно."
+```
+
+> **Как это работает:** официальный образ `postgres` при первом запуске выполняет все файлы из `/docker-entrypoint-initdb.d/` по алфавиту. ConfigMap монтируется именно туда — сначала отрабатывает `01-init.sql` (создаёт 6 БД), затем `02-init-check.sh` (проверяет, что все БД на месте).
+
+---
+
+# Монолог для защиты (~300 символов)
+
+> Этот ConfigMap содержит два скрипта инициализации PostgreSQL. Первый — SQL-скрипт, создающий 6 баз данных под микросервисы: users, hotels, reservations, payments, balances и statistics. Второй — bash-скрипт, проверяющий, что все БД действительно созданы. ConfigMap монтируется в `/docker-entrypoint-initdb.d/` пода Postgres.

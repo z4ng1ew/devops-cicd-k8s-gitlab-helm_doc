@@ -4,3 +4,30 @@ description: Helm chart for Hotels microservices application (DO12)
 type: application
 version: 0.2.0
 appVersion: "1.0.0"
+
+
+
+
+
+
+
+
+
+
+# Построчный комментарий к `Chart.yaml`
+
+```yaml
+apiVersion: v2              # Версия API Helm-чарта; v2 — для Helm 3 (поддержка dependencies и library charts)
+name: hotels-app            # Имя чарта; используется в командах helm install/upgrade
+description: Helm chart for Hotels microservices application (DO12)
+                            # Краткое описание назначения чарта
+type: application           # Тип чарта: application (разворачиваемое приложение), не library
+version: 0.2.0              # Версия самого чарта (SemVer); инкрементируется при изменениях чарта
+appVersion: "1.0.0"         # Версия приложения, которое разворачивает чарт (информативное поле)
+```
+
+---
+
+# Монолог для защиты (~300 символов)
+
+> Файл `Chart.yaml` — это манифест Helm-чарта. В нём указано имя чарта `hotels-app`, тип `application`, версия API `v2` для Helm 3, версия самого чарта `0.2.0` и версия разворачиваемого приложения `1.0.0`. Этот файл нужен Helm для идентификации и версионирования чарта при установке.

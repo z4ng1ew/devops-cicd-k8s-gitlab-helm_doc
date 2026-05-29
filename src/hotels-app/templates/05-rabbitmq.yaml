@@ -47,3 +47,75 @@ spec:
               valueFrom: { secretKeyRef: { name: app-secrets, key: RABBIT_MQ_PASSWORD } }
 
 
+# Построчный комментарий к `rabbitmq-statefulset.yaml`
+
+```yaml
+# ============ SERVICE (Headless) ============
+apiVersion: v1
+kind: Service                               # Headless Service для RabbitMQ
+metadata:
+  name: rabbitmq                            # DNS-имя: микросервисы подключаются по rabbitmq:5672
+  labels:
+    app: rabbitmq
+spec:
+  clusterIP: None                           # Headless: без балансировки, DNS сразу указывает на под
+                                            # (нужно для StatefulSet и кластеризации RabbitMQ)
+  selector:
+    app: rabbitmq                           # Связывает сервис с подами по метке
+  ports:
+    - name: amqp                            # Основной AMQP-протокол
+      port: 5672                            # Порт сервиса
+      targetPort: 5672                      # Порт контейнера
+    - name: management                      # Web UI и HTTP API для управления
+      port: 15672
+      targetPort: 15672
+
+---
+# ============ STATEFULSET ============
+apiVersion: apps/v1
+kind: StatefulSet                           # StatefulSet, т.к. RabbitMQ хранит состояние
+                                            # (очереди, exchange'и) и требует стабильного имени
+metadata:
+  name: rabbitmq
+  labels:
+    app: rabbitmq
+spec:
+  serviceName: rabbitmq                     # Связь с headless service для DNS подов
+  replicas: {{ .Values.replicaCount.rabbitmq }}    # Кол-во реплик из values.yaml (1)
+  selector:
+    matchLabels:
+      app: rabbitmq                         # Селектор управляемых подов
+
+  template:                                 # Шаблон пода
+    metadata:
+      labels:
+        app: rabbitmq                       # Метка для service selector
+    spec:
+      containers:
+        - name: rabbitmq
+          image: {{ .Values.image.rabbitmq }}       # Образ rabbitmq:3.12-management-alpine
+                                                    # (с management-плагином)
+          imagePullPolicy: {{ .Values.image.pullPolicy }}    # IfNotPresent
+
+          ports:
+            - containerPort: 5672           # AMQP — для микросервисов
+            - containerPort: 15672          # Management UI/API
+
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom: { secretKeyRef: { name: app-secrets, key: RABBIT_MQ_USER } }
+                                            # Логин из Secret app-secrets
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom: { secretKeyRef: { name: app-secrets, key: RABBIT_MQ_PASSWORD } }
+                                            # Пароль из Secret
+```
+
+> **Зачем StatefulSet:** RabbitMQ — stateful-сервис с очередями. Хотя в этой конфигурации нет PVC (данные хранятся в эфемерном хранилище пода), используется StatefulSet ради стабильного DNS-имени `rabbitmq-0.rabbitmq` и упорядоченного запуска. В проде сюда стоило бы добавить `volumeClaimTemplates`.
+
+> **Зачем два порта:** 5672 — рабочий AMQP-канал для booking-service и report-service (передача статистики через exchange/queue). 15672 — web-консоль администратора.
+
+---
+
+# Монолог для защиты (~300 символов)
+
+> RabbitMQ развёрнут как StatefulSet с headless-сервисом. Открыты два порта: 5672 для AMQP-обмена сообщениями между booking и report сервисами, и 15672 для management UI. Учётные данные подтягиваются из Secret. Используется образ с management-плагином для удобства отладки очередей.

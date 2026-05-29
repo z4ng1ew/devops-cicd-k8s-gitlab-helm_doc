@@ -64,3 +64,110 @@ spec:
         resources:
           requests:
             storage: {{ .Values.postgres.storage.size }}
+
+
+
+
+
+# Построчный комментарий к `postgres-statefulset.yaml`
+
+```yaml
+# ============ SERVICE (Headless) ============
+apiVersion: v1
+kind: Service                               # Headless Service для StatefulSet
+metadata:
+  name: postgres                            # DNS-имя, по которому сервисы подключаются: postgres:5432
+  labels:
+    app: postgres
+spec:
+  clusterIP: None                           # None = headless: DNS возвращает IP пода напрямую,
+                                            # без балансировки (нужно для stateful-приложений)
+  selector:
+    app: postgres                           # Отбирает поды с меткой app: postgres
+  ports:
+    - port: 5432                            # Порт сервиса
+      targetPort: 5432                      # Порт контейнера PostgreSQL
+
+---
+# ============ STATEFULSET ============
+apiVersion: apps/v1
+kind: StatefulSet                           # StatefulSet, а не Deployment — для БД
+                                            # (стабильные имена подов: postgres-0, и persistent storage)
+metadata:
+  name: postgres
+  labels:
+    app: postgres
+spec:
+  serviceName: postgres                     # Связь с headless service (для DNS подов)
+  replicas: {{ .Values.replicaCount.postgres }}    # Количество реплик из values.yaml (1)
+  selector:
+    matchLabels:
+      app: postgres                         # Селектор подов, которыми управляет StatefulSet
+
+  template:                                 # Шаблон пода
+    metadata:
+      labels:
+        app: postgres                       # Метка должна совпадать с selector
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: k3s-master  # Под планируется только на ноду k3s-master
+                                            # (там же, где лежит hostPath PV)
+
+      containers:
+        - name: postgres
+          image: {{ .Values.image.postgres }}        # Образ PostgreSQL из values.yaml
+          imagePullPolicy: {{ .Values.image.pullPolicy }}    # Политика загрузки (IfNotPresent)
+          ports:
+            - containerPort: 5432           # Порт PostgreSQL внутри контейнера
+
+          env:                              # Переменные окружения
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: app-secrets, key: POSTGRES_USER } }
+                                            # Логин из Secret app-secrets
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: app-secrets, key: POSTGRES_PASSWORD } }
+                                            # Пароль из Secret
+            - name: POSTGRES_DB
+              value: postgres               # Имя БД по умолчанию (системная)
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+                                            # Поддиректория для данных (рекомендация Postgres
+                                            # при монтировании volume в /var/lib/postgresql/data)
+
+          volumeMounts:
+            - name: postgres-storage        # Том для данных БД
+              mountPath: /var/lib/postgresql/data
+            - name: init-script             # ConfigMap с init-скриптами
+              mountPath: /docker-entrypoint-initdb.d
+                                            # Скрипты выполнятся при первом запуске Postgres
+
+      volumes:
+        - name: init-script
+          configMap:
+            name: postgres-init             # Ссылка на ConfigMap postgres-init
+                                            # (там 01-init.sql и 02-init-check.sh)
+
+  volumeClaimTemplates:                     # Шаблон PVC — k8s создаст PVC для каждой реплики
+    - metadata:
+        name: postgres-storage
+      spec:
+        accessModes: [ReadWriteOnce]        # Том для одной ноды на чтение/запись
+        storageClassName: {{ .Values.postgres.storage.storageClassName }}
+                                            # Класс хранилища (manual) — свяжется с нашим PV
+        resources:
+          requests:
+            storage: {{ .Values.postgres.storage.size }}    # Запрошенный размер (5Gi)
+```
+
+> **Почему StatefulSet, а не Deployment:**
+> - Стабильное имя пода (`postgres-0`) и DNS-запись
+> - Каждой реплике автоматически создаётся свой PVC через `volumeClaimTemplates`
+> - Гарантированный порядок запуска и удаления подов — критично для БД
+
+> **Цепочка хранения:** StatefulSet → PVC (из шаблона) → PV (`postgres-pv`, hostPath на k3s-master) → реальный диск.
+
+---
+
+# Монолог для защиты (~300 символов)
+
+> Postgres развёрнут как StatefulSet, а не Deployment, потому что это БД — нужны стабильные имена подов и привязка к persistent volume. Headless Service даёт DNS-имя `postgres`. Под прибит nodeSelector'ом к мастер-ноде, где лежит hostPath PV. Учётки берутся из Secret, init-скрипты — из ConfigMap.

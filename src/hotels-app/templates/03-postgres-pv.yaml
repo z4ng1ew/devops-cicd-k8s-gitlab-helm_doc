@@ -23,3 +23,63 @@ spec:
               operator: In
               values:
                 - k3s-master
+
+
+
+
+
+
+
+# Построчный комментарий к `postgres-pv.yaml` (Helm-шаблон)
+
+```yaml
+apiVersion: v1                              # Версия API Kubernetes
+kind: PersistentVolume                      # Тип ресурса — PV (кластерный том хранения)
+metadata:
+  name: postgres-pv                         # Имя PV
+  labels:
+    type: local                             # Метка: локальное хранилище
+    app: postgres                           # Метка приложения (для селекторов)
+
+spec:
+  storageClassName: {{ .Values.postgres.storage.storageClassName }}
+                                            # Класс хранилища из values.yaml (manual);
+                                            # PVC будет связываться только с PV того же класса
+
+  capacity:
+    storage: {{ .Values.postgres.storage.size }}
+                                            # Размер тома (5Gi из values.yaml)
+
+  accessModes:
+    - ReadWriteOnce                         # Том может быть смонтирован для чтения/записи
+                                            # только на одной ноде одновременно (RWO)
+
+  persistentVolumeReclaimPolicy: Retain     # При удалении PVC данные НЕ удаляются —
+                                            # том остаётся для ручной обработки (защита от потери БД)
+
+  hostPath:
+    path: {{ .Values.postgres.storage.hostPath }}
+                                            # Физический путь на ноде (/var/lib/postgres-pv)
+    type: DirectoryOrCreate                 # Если каталога нет — создать автоматически
+
+  nodeAffinity:                             # Привязка PV к конкретной ноде
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname   # Стандартная метка имени ноды
+              operator: In
+              values:
+                - k3s-master                # PV привязан к ноде k3s-master,
+                                            # чтобы под Postgres всегда поднимался там же,
+                                            # где физически лежат данные
+```
+
+> **Зачем nodeAffinity:** `hostPath` хранит данные на конкретной ноде. Если под Postgres перепланируется на другую ноду, он не увидит свою БД. `nodeAffinity` гарантирует, что планировщик k8s всегда поставит под именно на `k3s-master`.
+
+> **Почему Retain, а не Delete:** для БД критично сохранять данные даже при удалении PVC — иначе случайный `helm uninstall` стёр бы всю информацию.
+
+---
+
+# Монолог для защиты (~300 символов)
+
+> Это Helm-шаблон PersistentVolume для PostgreSQL. PV использует hostPath с привязкой к ноде `k3s-master` через nodeAffinity, чтобы под Postgres всегда поднимался там, где физически лежат данные. Reclaim policy — Retain: данные не удаляются при удалении PVC. Размер и путь берутся из values.yaml.

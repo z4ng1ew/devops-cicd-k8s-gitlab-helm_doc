@@ -44,3 +44,77 @@ secrets:
   jwtPrivateKey: "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC9Q1hl6ossCg5Tr43IW0px2Wz0tDOKRHncreZcew3G+63QuXrLSb5BRh24q0ej4W+Wj8/6RR6vwG1hFtPIBqy6OYUvEdBmOay9eEpzQc2Xy253qSQyxco4FmyNLAwfyk0JS5DKdagT6ct3AqQe9+oGsEHf18CWD/dnYrfKI644uqniI3Lzrk+YnIwZ8BChKMN40qd7XkRuWsJBGEJr+hp1F1KvaYbPz/gqvBJS+IlG37/6mO1xoMaDfPxEUCJbHiWS8PcSeC9TllVVtC+oyPnQzYEbBh7ZfxbwAD3y5FW3qxWN33sQ53XaH7zHondMAQJ6hQROCb6Ml/0bBKfU0hz9AgMBAAECggEANI56Arsx8IXOWrDaZ3PqZVkiZ4WO9mtzh7OGz9GgDsyfBOIs1jzhJ1EoObrehwS4LxA6id4d2mJOPXLQVrB70K7ebCa/P1PuwyKfUghI5kkooPQISE0ijZa0iDNeHonYAKfKSl6H0RfQV3kVSEBB7Z+Oe3F3WnSOmFgSf4CPBdNc240kanQlxsmKjsDmsxLePiYNxU6vDoZt/JKQmSwQUIgznMm7upEmh3UR8q7N757I+dTEhGxs8LLGyvJ2nGnolH9fpkXJlAKHAUvnX1NfUkCgIGiVqpsxwHb5jTmjqpH1U8usaSPZDD0uLf4DLUjIgddpSGcUIjKlaNO9sQXsBQKBgQD5XpNMqgIZgtfEOVJ44auMZqCsIuKXwsICNZmeqSkv5J29ov3V/fkBjDpwiyEXO/9HeFOUEGSNGeFPF4ha0KnNFmeTwDCIPA2vyF3Z049GfRytc4qDqwdplVjgPBPKfrGNmGdHlKKoEHGjpWnuJgOkNhenPKG7zbevpty7TqgluwKBgQDCS6JEl9j34gp5+MoxIbkXt1WOwngnFwRscklTEGJ4wZ3i6GtKIOVzYd7VDqgomB/jnkDQlBK47OzAA54bJBkJ6w83cDGR8D51axYKgKG+Kd8EOeEN4PY+jjKyUpKU3o8o++JKEKs8J2raemb+5YlgiY1ZeDNhL4LrUVa3cIyApwKBgGXo56u6AreoSENx5alvGGt9eYY/j3jT5/N9MjWsDh/7fxeD59avPzcJtsxNn41eQJpVq1pkRKOBgxmOlXP/uJUO5e906KCUYkeHTAt8MR5ufOzJvj7HA3V7ymGBS9lCY49pTDPto3epmLd3H05rDKvsS0hWOAaHMN1BBQ4rO/6HAoGAMQJI/QpcZTJ0OA4EWl5KROwuvaLaEeohaIVvb29bl2AnRjwgDAO+PNt8DLv0uMCekpixeqtPCaxhj5GaCPiTBEhxfydiqZAzAQUw+xc1NTV0lqlO1mRfWKofqZFgfgKhk9HtY4dO2g6LSm7DmhomC97Gc8H5G9OTL25F9GGEX1MCgYEA5CkqAvlJfyCm5lGp2gLMfwElF1oYtgC5xRDpzI6DnMjKhUxeJaMgRkam3mvMA0zg58ZTY9q+CeSSyDohNZpLDZomG7mEuNDWAPbpafo9g8q1g7ucWGeFRgVAmf0xmnJHHmAqODdT9X02abJZMumawCRDtRpPKvNtamO9jex9YgM="
   jwtPublicKey: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvUNYZeqLLAoOU6+NyFtKcdls9LQzikR53K3mXHsNxvut0Ll6y0m+QUYduKtHo+Fvlo/P+kUer8BtYRbTyAasujmFLxHQZjmsvXhKc0HNl8tud6kkMsXKOBZsjSwMH8pNCUuQynWoE+nLdwKkHvfqBrBB39fAlg/3Z2K3yiOuOLqp4iNy865PmJyMGfAQoSjDeNKne15EblrCQRhCa/oadRdSr2mGz8/4KrwSUviJRt+/+pjtcaDGg3z8RFAiWx4lkvD3EngvU5ZVVbQvqMj50M2BGwYe2X8W8AA98uRVt6sVjd97EOd12h+8x6J3TAECeoUETgm+jJf9GwSn1NIc/QIDAQAB"
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Построчный комментарий к `values.yaml` (Helm-чарт)
+
+```yaml
+replicaCount:              # Количество реплик (подов) для каждого компонента
+  postgres: 1              # БД — один экземпляр (stateful)
+  rabbitmq: 1              # Брокер сообщений — один экземпляр
+  session: 1               # Сервис сессий/авторизации
+  hotel: 1                 # Сервис отелей
+  booking: 1               # Сервис бронирований
+  payment: 1               # Сервис платежей
+  loyalty: 1               # Сервис программы лояльности
+  report: 1                # Сервис отчётов
+  gateway: 2               # API Gateway — 2 реплики для отказоустойчивости и балансировки
+
+image:
+  pullPolicy: IfNotPresent # Тянуть образ только если его нет локально (экономия трафика)
+  postgres: postgres:16.4-alpine@sha256:5660...
+                           # Образ PostgreSQL, закреплён по digest для воспроизводимости
+  rabbitmq: rabbitmq:3.12-management-alpine@sha256:0b44...
+                           # RabbitMQ с management-плагином (web UI), также pinned по sha256
+  session: src-session-service:0.3.0    # Собственный образ сервиса сессий, версия 0.3.0
+  hotel:   src-hotel-service:0.3.0      # Образ сервиса отелей
+  booking: src-booking-service:0.3.0    # Образ сервиса бронирований
+  payment: src-payment-service:0.3.0    # Образ сервиса платежей
+  loyalty: src-loyalty-service:0.3.0    # Образ сервиса лояльности
+  report:  src-report-service:0.3.0     # Образ сервиса отчётов
+  gateway: src-gateway-service:0.2.0    # Образ API Gateway
+
+postgres:
+  storage:
+    size: 5Gi                           # Размер PersistentVolume для БД — 5 ГБ
+    storageClassName: manual            # Класс хранилища — ручное создание PV
+    hostPath: /var/lib/postgres-pv      # Путь на ноде, где физически хранятся данные
+
+ingress:
+  enabled: true                          # Включаем Ingress (внешний доступ через HTTP/HTTPS)
+  sessionHost: session.10.174.8.95.nip.io  # Домен для session-сервиса (nip.io резолвит IP в DNS)
+  gatewayHost: gateway.10.174.8.95.nip.io  # Домен для gateway
+  tlsSecret: wildcard-nipio-tls          # K8s-секрет с TLS-сертификатом (wildcard)
+  clusterIssuer: my-ca-issuer            # ClusterIssuer cert-manager для автогенерации сертификатов
+
+secrets:                                 # Значения по умолчанию (в проде переопределяются через --set)
+  postgresUser: "postgres"               # Логин БД
+  postgresPassword: "postgres"           # Пароль БД (в CI берётся из k8s-секрета)
+  rabbitmqUser: "guest"                  # Логин RabbitMQ
+  rabbitmqPassword: "guest"              # Пароль RabbitMQ (тоже подменяется в CI)
+  gatewayUuid: "b51ceda2-..."            # UUID для идентификации gateway во внутренних запросах
+  bookingUuid: "911ccb4c-..."            # UUID для booking-сервиса
+  jwtPrivateKey: "MIIEvQIBADAN..."       # Приватный RSA-ключ для подписи JWT-токенов (PKCS#8 base64)
+  jwtPublicKey:  "MIIBIjANBgkq..."       # Публичный RSA-ключ для верификации JWT-токенов
+```
+
+---
+
+# Монолог для защиты (~300 символов)
+
+> Файл `values.yaml` — это конфигурация Helm-чарта. Здесь задаются количество реплик каждого микросервиса, образы с закреплёнными digest-ами, параметры PersistentVolume для PostgreSQL, настройки Ingress с TLS через cert-manager и nip.io, а также секреты: учётные данные БД, RabbitMQ и пара RSA-ключей для JWT.

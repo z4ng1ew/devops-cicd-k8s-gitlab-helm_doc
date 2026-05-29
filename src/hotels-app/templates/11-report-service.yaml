@@ -37,3 +37,69 @@ spec:
     - port: 8086
       targetPort: 8086
   type: ClusterIP
+
+
+
+
+# Построчный комментарий к `report-service.yaml`
+
+```yaml
+# ============ DEPLOYMENT ============
+apiVersion: apps/v1
+kind: Deployment                            # Deployment — stateless микросервис
+metadata:
+  name: report-service                      # Имя Deployment
+  labels: { app: report-service }           # Метка приложения
+
+spec:
+  replicas: {{ .Values.replicaCount.report }}    # Кол-во реплик из values.yaml (1)
+  selector:
+    matchLabels: { app: report-service }    # Селектор управляемых подов
+
+  template:                                 # Шаблон пода
+    metadata:
+      labels: { app: report-service }       # Метка для связи с Service
+    spec:
+      containers:
+        - name: report-service
+          image: {{ .Values.image.report }}         # Образ src-report-service:0.3.0
+          imagePullPolicy: {{ .Values.image.pullPolicy }}    # IfNotPresent
+
+          ports:
+            - containerPort: 8086           # Порт Spring Boot приложения
+
+          envFrom:                          # Общие env-переменные
+            - configMapRef:
+                name: app-config            # В т.ч. RABBIT_MQ_* — report слушает очередь
+            - secretRef:
+                name: app-secrets           # Учётки RabbitMQ и БД
+
+          env:
+            - name: POSTGRES_DB
+              value: statistics_db          # Своя БД для агрегированной статистики
+
+---
+# ============ SERVICE ============
+apiVersion: v1
+kind: Service
+metadata:
+  name: report-service                      # DNS-имя: http://report-service:8086
+  labels: { app: report-service }
+
+spec:
+  selector: { app: report-service }         # Какие поды обслуживает
+  ports:
+    - port: 8086                            # Порт сервиса
+      targetPort: 8086                      # Порт контейнера
+  type: ClusterIP                           # Только внутренний доступ
+```
+
+> **Роль report-service:** подписан на очередь `booking_statistics_queue` в RabbitMQ. Booking-service публикует туда события (создание/отмена брони, оплаты), а report-service читает их асинхронно и собирает статистику в `statistics_db`. Это пример event-driven архитектуры — отчёты не нагружают основные сервисы.
+
+> **Почему через очередь, а не HTTP:** асинхронная обработка через RabbitMQ позволяет report-service временно лежать без потери данных — события будут ждать в очереди.
+
+---
+
+# Монолог для защиты (~300 символов)
+
+> Report-service собирает статистику по бронированиям. Подписан на очередь `booking_statistics_queue` в RabbitMQ — booking шлёт туда события асинхронно. Развёрнут как Deployment с БД `statistics_db`. Event-driven подход разгружает основные сервисы и обеспечивает отказоустойчивость сбора метрик.
